@@ -3,6 +3,9 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DeteksiController;
+use App\Http\Controllers\RiwayatKesehatanController;
+
 
 Route::get('/', function () {
     return view('user.landingpage');
@@ -49,5 +52,13 @@ Route::middleware(['auth', 'role.redirect'])->group(function () {
     Route::get('/pengaturan', function () {
         return redirect()->route('dashboard');
     })->name('pengaturan');
+
+    // Deteksi
+Route::get('/deteksi', [DeteksiController::class, 'index'])->name('deteksi.index');
+Route::get('/deteksi/create', [DeteksiController::class, 'create'])->name('deteksi.create');
+Route::post('/deteksi', [DeteksiController::class, 'store'])->name('deteksi.store');
+
+// Riwayat Kesehatan
+Route::get('/riwayat-kesehatan', [RiwayatKesehatanController::class, 'index'])->name('riwayat_kesehatan.index');
 
 });
