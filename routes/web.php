@@ -62,3 +62,15 @@ Route::post('/deteksi', [DeteksiController::class, 'store'])->name('deteksi.stor
 Route::get('/riwayat-kesehatan', [RiwayatKesehatanController::class, 'index'])->name('riwayat_kesehatan.index');
 
 });
+Route::get('/hasil-test', function () {
+    return view('deteksi.hasil', [
+        'gambar'        => 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600',
+        'ukuran'        => '2.1 MB',
+        'waktu'         => now()->format('H:i'),
+        'nama_penyakit' => 'Tinea Corporis',
+        'confidence'    => 94,
+        'deskripsi'     => 'Tinea corporis (kurap badan) adalah infeksi jamur superfisial.',
+        'rekomendasi'   => ['Gunakan krim antijamur', 'Jaga kebersihan area'],
+        'saran'         => null,
+    ]);
+});
