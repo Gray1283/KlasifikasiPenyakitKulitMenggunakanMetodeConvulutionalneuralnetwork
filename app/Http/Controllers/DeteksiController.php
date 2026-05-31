@@ -25,119 +25,106 @@ class DeteksiController extends Controller
     {
         $userId = Auth::id();
 
-        $lastCheckup = HasilKlasifikasi::whereHas('gambarKulit', function($q) use ($userId) {
-                $q->where('id_user', $userId);
-            })
+        $lastCheckup = HasilKlasifikasi::whereHas('gambarKulit', fn($q) => $q->where('id_user', $userId))
             ->with(['penyakit', 'gambarKulit'])
             ->latest('tanggal_prediksi')
             ->first();
 
-        $totalCheckups = HasilKlasifikasi::whereHas('gambarKulit', function($q) use ($userId) {
-                $q->where('id_user', $userId);
-            })->count();
+        $totalCheckups = HasilKlasifikasi::whereHas('gambarKulit', fn($q) => $q->where('id_user', $userId))->count();
+        $normalCount   = HasilKlasifikasi::whereHas('gambarKulit', fn($q) => $q->where('id_user', $userId))->where('tingkat_akurasi', '>=', 80)->count();
+        $abnormalCount = HasilKlasifikasi::whereHas('gambarKulit', fn($q) => $q->where('id_user', $userId))->where('tingkat_akurasi', '<', 80)->count();
 
-        $normalCount = HasilKlasifikasi::whereHas('gambarKulit', function($q) use ($userId) {
-                $q->where('id_user', $userId);
-            })
-            ->where('tingkat_akurasi', '>=', 80)
-            ->count();
-
-        $abnormalCount = HasilKlasifikasi::whereHas('gambarKulit', function($q) use ($userId) {
-                $q->where('id_user', $userId);
-            })
-            ->where('tingkat_akurasi', '<', 80)
-            ->count();
-
-        return view('user.deteksi.index', compact(
-            'lastCheckup',
-            'totalCheckups',
-            'normalCount',
-            'abnormalCount'
-        ));
-    }
-
-    public function create()
-    {
-        return view('user.deteksi.form');
+        return view('user.deteksi.index', compact('lastCheckup', 'totalCheckups', 'normalCount', 'abnormalCount'));
     }
 
     public function store(Request $request)
+{
+    $request->validate(
+        ['image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120'],
+        [
+            'image.required' => 'Gambar wajib diunggah.',
+            'image.image'    => 'File harus berupa gambar.',
+            'image.mimes'    => 'Format gambar harus JPG, PNG, atau WEBP.',
+            'image.max'      => 'Ukuran gambar maksimal 5 MB.',
+        ]
+    );
+
+    $file      = $request->file('image');
+    $imagePath = $file->store('deteksi_kulit', 'public');
+
+    // Simpan gambar ke DB
+    try {
+        $gambar = GambarKulit::create([
+            'id_user'        => Auth::id(),
+            'nama_file'      => $imagePath,
+            'format_file'    => $file->getClientOriginalExtension(),
+            'ukuran_file'    => $file->getSize(),
+            'tanggal_upload' => now(),
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Gagal menyimpan gambar: ' . $e->getMessage());
+        Storage::disk('public')->delete($imagePath);
+        return back()->withErrors(['image' => 'Gagal menyimpan gambar. Silakan coba lagi.']);
+    }
+
+    // ── DUMMY ML RESULT (hapus setelah AI siap) ──────────────
+    $labelRaw   = 'Tinea Corporis';
+    $confidence = 94.00;
+    // ─────────────────────────────────────────────────────────
+
+    // Simpan hasil ke DB
+    $penyakit = Penyakit::firstOrCreate(
+        ['nama_penyakit' => $labelRaw],
+        [
+            'deskripsi'       => 'Tinea corporis (kurap badan) adalah infeksi jamur superfisial yang menyerang lapisan kulit luar. Ditandai dengan bercak merah melingkar, bersisik di tepinya, dan terasa gatal.',
+            'rekomendasi'     => "Gunakan krim antijamur topikal 2x sehari\nJaga area tetap bersih dan kering\nHindari berbagi handuk\nPeriksa dokter jika tidak membaik dalam 2 minggu",
+            'saran_tambahan'  => 'Hindari menggaruk area yang terinfeksi untuk mencegah penyebaran.',
+        ]
+    );
+
+    $modelCnn = null;
+
+    try {
+        $hasil = HasilKlasifikasi::create([
+            'id_gambar'        => $gambar->id_gambar,
+            'id_model'         => $modelCnn?->id_model,
+            'id_penyakit'      => $penyakit->id_penyakit,
+            'tingkat_akurasi'  => $confidence,
+            'hasil_prediksi'   => $labelRaw,
+            'tanggal_prediksi' => now(),
+        ]);
+    } catch (\Exception $e) {
+        Log::error('Gagal menyimpan hasil: ' . $e->getMessage());
+        return back()->withErrors(['image' => 'Gagal menyimpan hasil deteksi. Silakan coba lagi.']);
+    }
+
+    return redirect()->route('deteksi.hasil', ['id' => $hasil->id_hasil]);
+}
+
+    public function hasil($id)
     {
-        $request->validate(
-            ['image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120'],
-            [
-                'image.required' => 'Gambar wajib diunggah.',
-                'image.image'    => 'File harus berupa gambar.',
-                'image.mimes'    => 'Format gambar harus JPG, PNG, atau WEBP.',
-                'image.max'      => 'Ukuran gambar maksimal 5 MB.',
-            ]
-        );
+        $hasil = HasilKlasifikasi::with(['penyakit', 'gambarKulit'])
+            ->where('id_hasil', $id)
+            ->whereHas('gambarKulit', fn($q) => $q->where('id_user', Auth::id()))
+            ->firstOrFail();
 
-        $file      = $request->file('image');
-        $imagePath = $file->store('deteksi_kulit', 'public');
+        $penyakit   = $hasil->penyakit;
+        $gambarKulit = $hasil->gambarKulit;
 
-        try {
-            $gambar = GambarKulit::create([
-                'id_user'        => Auth::id(),
-                'nama_file'      => $imagePath,
-                'format_file'    => $file->getClientOriginalExtension(),
-                'ukuran_file'    => $file->getSize(),
-                'tanggal_upload' => now(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Gagal menyimpan gambar kulit: ' . $e->getMessage());
-            Storage::disk('public')->delete($imagePath);
-            return back()->with('error', 'Gagal menyimpan gambar. Silakan coba lagi.');
-        }
-
-        try {
-            $mlResult = $this->mlService->predictImage($file);
-
-            if (!$mlResult['success']) {
-                Log::warning('ML API gagal', ['error' => $mlResult['error'] ?? 'Unknown']);
-                Storage::disk('public')->delete($imagePath);
-                $gambar->delete();
-                return back()->with('error', 'Gagal menghubungi layanan AI. Silakan coba lagi.');
-            }
-
-            $prediction = $mlResult['data'];
-            $labelRaw   = $prediction['label']     ?? 'Tidak Diketahui';
-            $confidence = $prediction['confidence'] ?? 0;
-            $allScores  = $prediction['all_scores'] ?? [];
-
-        } catch (\Exception $e) {
-            Log::error('MLService Error: ' . $e->getMessage());
-            Storage::disk('public')->delete($imagePath);
-            $gambar->delete();
-            return back()->with('error', 'Terjadi kesalahan saat memproses gambar.');
-        }
-
-        $penyakit = Penyakit::firstOrCreate(['nama_penyakit' => $labelRaw]);
-        $modelCnn = CnnModel::where('status_aktif', true)->latest()->first();
-
-        try {
-            $hasil = HasilKlasifikasi::create([
-                'id_gambar'        => $gambar->id_gambar,
-                'id_model'         => $modelCnn?->id_model,
-                'id_penyakit'      => $penyakit->id_penyakit,
-                'tingkat_akurasi'  => round($confidence * 100, 2),
-                'hasil_prediksi'   => $labelRaw,
-                'tanggal_prediksi' => now(),
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Gagal menyimpan hasil klasifikasi: ' . $e->getMessage());
-            return back()->with('error', 'Gagal menyimpan hasil deteksi. Silakan coba lagi.');
-        }
-
-        $hasilData = [
-            'id_hasil'   => $hasil->id_hasil,
-            'label'      => $labelRaw,
-            'confidence' => round($confidence * 100, 2),
-            'all_scores' => $allScores,
-            'image_url'  => Storage::url($imagePath),
-            'penyakit'   => $penyakit,
-        ];
-
-        return view('user.deteksi.hasil', compact('hasilData'));
+        return view('user.deteksi.hasil', [
+            'nama_penyakit' => $penyakit->nama_penyakit ?? 'Tidak Diketahui',
+            'confidence'    => $hasil->tingkat_akurasi,
+            'deskripsi'     => $penyakit->deskripsi     ?? '-',
+            'rekomendasi'   => $penyakit->rekomendasi
+                                ? (is_array($penyakit->rekomendasi)
+                                    ? $penyakit->rekomendasi
+                                    : explode("\n", $penyakit->rekomendasi))
+                                : [],
+            'saran'         => $penyakit->saran_tambahan ?? null,
+            'gambar'        => Storage::url($gambarKulit->nama_file),
+            'ukuran'        => number_format($gambarKulit->ukuran_file / 1024 / 1024, 1) . ' MB',
+            'waktu'         => $hasil->tanggal_prediksi->format('H:i'),
+        ]);
     }
 }
+

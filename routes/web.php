@@ -54,10 +54,9 @@ Route::middleware(['auth', 'role.redirect'])->group(function () {
     })->name('pengaturan');
 
     // Deteksi
-Route::get('/deteksi', [DeteksiController::class, 'index'])->name('deteksi.index');
-Route::get('/deteksi/create', [DeteksiController::class, 'create'])->name('deteksi.create');
-Route::post('/deteksi', [DeteksiController::class, 'store'])->name('deteksi.store');
-
+Route::get('/deteksi',          [DeteksiController::class, 'index'])->name('deteksi.index');
+Route::post('/deteksi/store',   [DeteksiController::class, 'store'])->name('deteksi.store');
+Route::get('/deteksi/hasil/{id}',[DeteksiController::class, 'hasil'])->name('deteksi.hasil');
 // Riwayat Kesehatan
 Route::get('/riwayat-kesehatan', [RiwayatKesehatanController::class, 'index'])->name('riwayat_kesehatan.index');
 
