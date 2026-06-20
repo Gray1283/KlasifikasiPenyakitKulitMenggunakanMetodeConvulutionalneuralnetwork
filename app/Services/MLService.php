@@ -13,7 +13,7 @@ class MLService
 
     public function __construct()
     {
-        $this->baseUrl = config('services.ml.url', env('ML_API_URL', 'http://localhost:8000'));
+        $this->baseUrl = config('services.ml.url', env('ML_SERVICE_URL', 'http://localhost:5000'));
         $this->timeout = (int) config('services.ml.timeout', 30);
     }
 
@@ -28,11 +28,11 @@ class MLService
         try {
             $response = Http::timeout($this->timeout)
                 ->attach(
-                    'image',                        // nama field di API
+                    'image',
                     file_get_contents($file->getRealPath()),
                     $file->getClientOriginalName()
                 )
-                ->post("{$this->baseUrl}/predict/skin");
+                ->post("{$this->baseUrl}/predict");
 
             if ($response->successful()) {
                 return [
@@ -41,7 +41,7 @@ class MLService
                 ];
             }
 
-            Log::warning('ML API skin predict non-2xx response', [
+            Log::warning('ML API non-2xx', [
                 'status' => $response->status(),
                 'body'   => $response->body(),
             ]);
@@ -52,26 +52,20 @@ class MLService
             ];
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error('ML API connection error (skin): ' . $e->getMessage());
-
+            Log::error('ML API connection error: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error'   => 'Tidak dapat terhubung ke layanan AI: ' . $e->getMessage(),
             ];
 
         } catch (\Exception $e) {
-            Log::error('ML API unexpected error (skin): ' . $e->getMessage());
-
+            Log::error('ML API error: ' . $e->getMessage());
             return [
                 'success' => false,
                 'error'   => $e->getMessage(),
             ];
         }
     }
-
-    // ---------------------------------------------------------------
-    // Method lama untuk deteksi diabetes (tetap dipertahankan)
-    // ---------------------------------------------------------------
 
     public function predict(array $data): array
     {
@@ -104,6 +98,16 @@ class MLService
 
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function isHealthy(): bool
+    {
+        try {
+            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/health");
+            return $response->ok();
+        } catch (\Exception $e) {
+            return false;
         }
     }
 }

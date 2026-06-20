@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 use App\Models\GambarKulit;
 use App\Models\HasilKlasifikasi;
 use App\Models\Penyakit;
@@ -21,6 +22,9 @@ class DeteksiController extends Controller
         $this->mlService = $mlService;
     }
 
+    // ============================================================
+    // INDEX
+    // ============================================================
     public function index()
     {
         $userId = Auth::id();
@@ -37,70 +41,94 @@ class DeteksiController extends Controller
         return view('user.deteksi.index', compact('lastCheckup', 'totalCheckups', 'normalCount', 'abnormalCount'));
     }
 
+    // ============================================================
+    // STORE
+    // ============================================================
     public function store(Request $request)
-{
-    $request->validate(
-        ['image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120'],
-        [
-            'image.required' => 'Gambar wajib diunggah.',
-            'image.image'    => 'File harus berupa gambar.',
-            'image.mimes'    => 'Format gambar harus JPG, PNG, atau WEBP.',
-            'image.max'      => 'Ukuran gambar maksimal 5 MB.',
-        ]
-    );
+    {
+        $request->validate(
+            ['image' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120'],
+            [
+                'image.required' => 'Gambar wajib diunggah.',
+                'image.image'    => 'File harus berupa gambar.',
+                'image.mimes'    => 'Format gambar harus JPG, PNG, atau WEBP.',
+                'image.max'      => 'Ukuran gambar maksimal 5 MB.',
+            ]
+        );
 
-    $file      = $request->file('image');
-    $imagePath = $file->store('deteksi_kulit', 'public');
+        $file      = $request->file('image');
+        $imagePath = $file->store('deteksi_kulit', 'public');
 
-    // Simpan gambar ke DB
-    try {
-        $gambar = GambarKulit::create([
-            'id_user'        => Auth::id(),
-            'nama_file'      => $imagePath,
-            'format_file'    => $file->getClientOriginalExtension(),
-            'ukuran_file'    => $file->getSize(),
-            'tanggal_upload' => now(),
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Gagal menyimpan gambar: ' . $e->getMessage());
-        Storage::disk('public')->delete($imagePath);
-        return back()->withErrors(['image' => 'Gagal menyimpan gambar. Silakan coba lagi.']);
+        // ── Simpan gambar ke DB ──────────────────────────────────
+        try {
+            $gambar = GambarKulit::create([
+                'id_user'        => Auth::id(),
+                'nama_file'      => $imagePath,
+                'format_file'    => $file->getClientOriginalExtension(),
+                'ukuran_file'    => $file->getSize(),
+                'tanggal_upload' => now(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Gagal menyimpan gambar: ' . $e->getMessage());
+            Storage::disk('public')->delete($imagePath);
+            return back()->withErrors(['image' => 'Gagal menyimpan gambar. Silakan coba lagi.']);
+        }
+
+        // ── Panggil ML API ───────────────────────────────────────
+        $mlResult = $this->mlService->predictImage($file);
+
+        if (!$mlResult['success']) {
+            Log::error('ML API error: ' . ($mlResult['error'] ?? 'unknown'));
+            Storage::disk('public')->delete($imagePath);
+            GambarKulit::destroy($gambar->id_gambar);
+            return back()->withErrors(['image' => 'Gagal menganalisis gambar: ' . ($mlResult['error'] ?? 'Coba lagi.')]);
+        }
+
+        $labelRaw    = $mlResult['data']['predicted_class'];
+        $confidence  = $mlResult['data']['confidence'];
+        $deskripsiAI = $mlResult['data']['description'];
+
+        // ── Map label ke nama penyakit ───────────────────────────
+        $namaPenyakit = $this->mapLabel($labelRaw);
+
+        // ── Simpan atau ambil data penyakit ─────────────────────
+        $penyakit = Penyakit::firstOrCreate(
+            ['nama_penyakit' => $namaPenyakit],
+            [
+                'deskripsi'   => $deskripsiAI,
+                'gejala_umum' => $this->getGejalByLabel($labelRaw),
+                'penanganan'  => $this->getRekomendasiByLabel($labelRaw),
+            ]
+        );
+
+        // ── Ambil model CNN aktif jika ada ──────────────────────
+        try {
+            $modelCnn = CnnModel::latest()->first();
+        } catch (\Exception $e) {
+            $modelCnn = null;
+        }
+
+        // ── Simpan hasil klasifikasi ─────────────────────────────
+        try {
+            $hasil = HasilKlasifikasi::create([
+                'id_gambar'        => $gambar->id_gambar,
+                'id_model'         => $modelCnn?->id_model,
+                'id_penyakit'      => $penyakit->id_penyakit,
+                'tingkat_akurasi'  => $confidence,
+                'hasil_prediksi'   => $labelRaw,
+                'tanggal_prediksi' => now(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Gagal menyimpan hasil: ' . $e->getMessage());
+            return back()->withErrors(['image' => 'Gagal menyimpan hasil deteksi. Silakan coba lagi.']);
+        }
+
+        return redirect()->route('deteksi.hasil', ['id' => $hasil->id_hasil]);
     }
 
-    // ── DUMMY ML RESULT (hapus setelah AI siap) ──────────────
-    $labelRaw   = 'Tinea Corporis';
-    $confidence = 94.00;
-    // ─────────────────────────────────────────────────────────
-
-    // Simpan hasil ke DB
-    $penyakit = Penyakit::firstOrCreate(
-        ['nama_penyakit' => $labelRaw],
-        [
-            'deskripsi'       => 'Tinea corporis (kurap badan) adalah infeksi jamur superfisial yang menyerang lapisan kulit luar. Ditandai dengan bercak merah melingkar, bersisik di tepinya, dan terasa gatal.',
-            'rekomendasi'     => "Gunakan krim antijamur topikal 2x sehari\nJaga area tetap bersih dan kering\nHindari berbagi handuk\nPeriksa dokter jika tidak membaik dalam 2 minggu",
-            'saran_tambahan'  => 'Hindari menggaruk area yang terinfeksi untuk mencegah penyebaran.',
-        ]
-    );
-
-    $modelCnn = null;
-
-    try {
-        $hasil = HasilKlasifikasi::create([
-            'id_gambar'        => $gambar->id_gambar,
-            'id_model'         => $modelCnn?->id_model,
-            'id_penyakit'      => $penyakit->id_penyakit,
-            'tingkat_akurasi'  => $confidence,
-            'hasil_prediksi'   => $labelRaw,
-            'tanggal_prediksi' => now(),
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Gagal menyimpan hasil: ' . $e->getMessage());
-        return back()->withErrors(['image' => 'Gagal menyimpan hasil deteksi. Silakan coba lagi.']);
-    }
-
-    return redirect()->route('deteksi.hasil', ['id' => $hasil->id_hasil]);
-}
-
+    // ============================================================
+    // HASIL
+    // ============================================================
     public function hasil($id)
     {
         $hasil = HasilKlasifikasi::with(['penyakit', 'gambarKulit'])
@@ -108,23 +136,96 @@ class DeteksiController extends Controller
             ->whereHas('gambarKulit', fn($q) => $q->where('id_user', Auth::id()))
             ->firstOrFail();
 
-        $penyakit   = $hasil->penyakit;
+        $penyakit    = $hasil->penyakit;
         $gambarKulit = $hasil->gambarKulit;
 
         return view('user.deteksi.hasil', [
-            'nama_penyakit' => $penyakit->nama_penyakit ?? 'Tidak Diketahui',
-            'confidence'    => $hasil->tingkat_akurasi,
-            'deskripsi'     => $penyakit->deskripsi     ?? '-',
-            'rekomendasi'   => $penyakit->rekomendasi
-                                ? (is_array($penyakit->rekomendasi)
-                                    ? $penyakit->rekomendasi
-                                    : explode("\n", $penyakit->rekomendasi))
+            'nama_penyakit'  => $penyakit->nama_penyakit ?? 'Tidak Diketahui',
+            'label_raw'      => $hasil->hasil_prediksi,
+            'confidence'     => $hasil->tingkat_akurasi,
+            'deskripsi'      => $penyakit->deskripsi  ?? '-',
+            'gejala'         => $penyakit->gejala_umum ?? '-',
+            'rekomendasi'    => $penyakit->penanganan
+                                ? (is_array($penyakit->penanganan)
+                                    ? $penyakit->penanganan
+                                    : explode("\n", $penyakit->penanganan))
                                 : [],
-            'saran'         => $penyakit->saran_tambahan ?? null,
-            'gambar'        => Storage::url($gambarKulit->nama_file),
-            'ukuran'        => number_format($gambarKulit->ukuran_file / 1024 / 1024, 1) . ' MB',
-            'waktu'         => $hasil->tanggal_prediksi->format('H:i'),
+            'saran'          => null,
+            'gambar'         => Storage::url($gambarKulit->nama_file),
+            'ukuran'         => number_format($gambarKulit->ukuran_file / 1024 / 1024, 1) . ' MB',
+            'waktu'          => $hasil->tanggal_prediksi->format('H:i'),
+            'training_stats' => $this->getTrainingStats(),
         ]);
     }
-}
 
+    // ============================================================
+    // HELPER - Baca statistik training dari JSON (real-time)
+    // ============================================================
+    private function getTrainingStats(): ?array
+    {
+        $jsonPath = storage_path('app/ml/training_stats.json');
+
+        if (!File::exists($jsonPath)) {
+            return null;
+        }
+
+        try {
+            $data = json_decode(File::get($jsonPath), true);
+            return $data ?: null;
+        } catch (\Exception $e) {
+            Log::warning('Gagal baca training_stats.json: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    // ============================================================
+    // HELPER - Map label ke nama penyakit
+    // ============================================================
+    private function mapLabel(string $label): string
+    {
+        return match(strtolower($label)) {
+            'mel'   => 'Melanoma',
+            'nv'    => 'Melanocytic Nevi (Tahi Lalat)',
+            'bcc'   => 'Basal Cell Carcinoma',
+            'akiec' => 'Actinic Keratoses',
+            'bkl'   => 'Benign Keratosis',
+            'df'    => 'Dermatofibroma',
+            'vasc'  => 'Vascular Lesions',
+            default => ucfirst($label),
+        };
+    }
+
+    // ============================================================
+    // HELPER - Gejala per label
+    // ============================================================
+    private function getGejalByLabel(string $label): string
+    {
+        return match(strtolower($label)) {
+            'mel'   => 'Bercak kulit berubah warna, tepi tidak rata, ukuran membesar, bisa berdarah',
+            'nv'    => 'Bercak coklat atau hitam, tepi rata, ukuran stabil, tidak nyeri',
+            'bcc'   => 'Benjolan kecil berkilat, luka yang tidak sembuh, bercak merah bersisik',
+            'akiec' => 'Bercak kasar bersisik, kemerahan, terasa gatal atau perih saat disentuh',
+            'bkl'   => 'Pertumbuhan kulit berwarna coklat atau hitam, permukaan kasar dan bersisik',
+            'df'    => 'Benjolan keras kecil di bawah kulit, berwarna kecoklatan, tidak nyeri',
+            'vasc'  => 'Bercak merah atau ungu di kulit, pembuluh darah terlihat jelas di permukaan',
+            default => 'Perubahan pada kulit yang perlu diperiksa lebih lanjut',
+        };
+    }
+
+    // ============================================================
+    // HELPER - Rekomendasi per label
+    // ============================================================
+    private function getRekomendasiByLabel(string $label): string
+    {
+        return match(strtolower($label)) {
+            'mel'   => "Segera konsultasikan ke dokter spesialis kulit\nHindari paparan sinar matahari langsung\nGunakan tabir surya SPF 50+\nJangan mencoba mengobati sendiri",
+            'nv'    => "Pantau perubahan ukuran, warna, atau bentuk\nGunakan tabir surya saat beraktivitas luar\nPeriksa rutin ke dokter kulit setahun sekali",
+            'bcc'   => "Konsultasikan ke dokter kulit segera\nHindari paparan sinar UV berlebihan\nGunakan tabir surya dan pakaian pelindung",
+            'akiec' => "Konsultasikan ke dokter untuk penanganan lebih lanjut\nHindari paparan sinar matahari berlebihan\nGunakan tabir surya setiap hari",
+            'bkl'   => "Pantau kondisi kulit secara rutin\nJaga kebersihan dan kelembapan kulit\nKonsultasikan ke dokter jika ada perubahan",
+            'df'    => "Umumnya tidak berbahaya, pantau saja\nKonsultasikan ke dokter jika terasa nyeri atau membesar\nJangan mencoba memencet atau menghilangkan sendiri",
+            'vasc'  => "Konsultasikan ke dokter kulit atau vaskular\nHindari trauma pada area tersebut\nPantau perubahan warna atau ukuran",
+            default => "Konsultasikan ke dokter kulit untuk diagnosis lebih lanjut",
+        };
+    }
+}

@@ -73,3 +73,19 @@ Route::get('/hasil-test', function () {
         'saran'         => null,
     ]);
 });
+
+Route::get('/test-ml', function () {
+    $service  = new \App\Services\MLService();
+    $isHealthy = $service->isHealthy();
+    return response()->json([
+        'connected' => $isHealthy
+    ]);
+});
+Route::post('/test-predict', function (\Illuminate\Http\Request $request) {
+    $request->validate(['image' => 'required|image']);
+    
+    $service = new \App\Services\MLService();
+    $result  = $service->predictImage($request->file('image'));
+    
+    return response()->json($result);
+});
