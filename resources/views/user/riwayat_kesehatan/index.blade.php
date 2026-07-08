@@ -4,6 +4,18 @@
 @section('page_title', 'Riwayat Kesehatan')
 
 @section('content')
+@php
+    // Mapping kode kelas HAM10000 ke nama lengkap penyakit, dipakai di tabel riwayat
+    $namaLengkapPenyakitPhp = [
+        'akiec' => "Actinic Keratosis / Bowen's Disease",
+        'bcc'   => 'Basal Cell Carcinoma',
+        'bkl'   => 'Benign Keratosis-like Lesion',
+        'df'    => 'Dermatofibroma',
+        'mel'   => 'Melanoma',
+        'nv'    => 'Melanocytic Nevus',
+        'vasc'  => 'Vascular Lesion',
+    ];
+@endphp
 <div class="p-8">
     <div class="max-w-5xl mx-auto space-y-6">
 
@@ -86,8 +98,11 @@
                                     </div>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700 capitalize">
-                                {{ $data->label_penyakit ?? '-' }}
+                            <td class="px-6 py-4 text-sm text-gray-700">
+                                @php
+                                    $kodeLabel = strtolower(trim($data->label_penyakit ?? ''));
+                                @endphp
+                                {{ $namaLengkapPenyakitPhp[$kodeLabel] ?? ($data->label_penyakit ?? '-') }}
                             </td>
                             <td class="px-6 py-4 text-sm font-bold text-gray-800">
                                 {{ $data->confidence ?? '-' }} %
@@ -187,14 +202,30 @@
 <script>
     let riwayatData = {};
 
+    // ===================================================================
+    // Mapping 7 kelas penyakit sesuai dataset HAM10000
+    // akiec, bcc, bkl, df, mel, nv, vasc
+    // ===================================================================
+
+    const namaLengkapPenyakit = {
+        akiec: 'Actinic Keratosis / Bowen\'s Disease',
+        bcc: 'Basal Cell Carcinoma',
+        bkl: 'Benign Keratosis-like Lesion',
+        df: 'Dermatofibroma',
+        mel: 'Melanoma',
+        nv: 'Melanocytic Nevus',
+        vasc: 'Vascular Lesion',
+    };
+
     const deskripsiPenyakit = {
         default: 'Kondisi kulit yang terdeteksi oleh sistem AI. Untuk diagnosis akurat, silakan konsultasikan ke dokter kulit.',
-        lupus: 'Lupus adalah penyakit autoimun yang dapat menyerang kulit, sendi, dan organ lain. Kondisi ini ditandai dengan ruam kupu-kupu di wajah dan sensitivitas terhadap cahaya matahari.',
-        scabies: 'Scabies adalah infeksi kulit yang disebabkan oleh tungau Sarcoptes scabiei. Kondisi ini menyebabkan gatal hebat terutama pada malam hari dan dapat menyebar melalui kontak langsung.',
-        dermatitis: 'Dermatitis kontak adalah peradangan kulit yang terjadi akibat kontak langsung dengan alergen atau iritan tertentu. Kondisi ini ditandai dengan kemerahan, gatal, dan terkadang lepuhan.',
-        melanoma: 'Melanoma adalah jenis kanker kulit yang berkembang dari sel penghasil pigmen (melanosit). Deteksi dini sangat penting untuk penanganan yang efektif.',
-        psoriasis: 'Psoriasis adalah penyakit kulit kronis yang menyebabkan sel kulit tumbuh terlalu cepat, membentuk bercak tebal berwarna merah dengan sisik perak.',
-        eksim: 'Eksim (atopic dermatitis) adalah kondisi kulit yang menyebabkan kulit menjadi merah, gatal, dan meradang. Sering muncul pada anak-anak namun bisa terjadi di segala usia.',
+        akiec: 'Actinic Keratosis / Bowen\'s Disease adalah lesi prakanker atau kanker kulit stadium awal yang muncul akibat paparan sinar matahari kronis. Ditandai dengan bercak kasar, bersisik, berwarna merah muda hingga kecoklatan.',
+        bcc: 'Basal Cell Carcinoma (Karsinoma Sel Basal) adalah jenis kanker kulit paling umum, tumbuh lambat dan jarang menyebar ke organ lain. Biasanya muncul sebagai benjolan mengkilap atau luka yang tidak kunjung sembuh.',
+        bkl: 'Benign Keratosis-like Lesion adalah pertumbuhan kulit jinak yang menyerupai kutil, umumnya muncul seiring bertambahnya usia. Tidak bersifat kanker namun perlu dipantau bila berubah bentuk.',
+        df: 'Dermatofibroma adalah benjolan kulit jinak yang keras, biasanya muncul di kaki akibat trauma ringan seperti gigitan serangga. Umumnya tidak berbahaya dan tidak memerlukan pengobatan khusus.',
+        mel: 'Melanoma adalah jenis kanker kulit paling serius yang berkembang dari sel penghasil pigmen (melanosit). Dapat menyebar cepat ke bagian tubuh lain sehingga deteksi dan penanganan dini sangat penting.',
+        nv: 'Melanocytic Nevus (tahi lalat) adalah pertumbuhan kulit jinak yang sangat umum ditemukan. Sebagian besar tidak berbahaya, namun perubahan bentuk, warna, atau ukuran perlu diwaspadai.',
+        vasc: 'Vascular Lesion adalah kelainan pada pembuluh darah kulit seperti hemangioma atau angioma. Umumnya jinak dan berupa bercak merah keunguan pada permukaan kulit.',
     };
 
     const rekomendasiPenyakit = {
@@ -203,35 +234,40 @@
             'Hindari menggaruk atau memperparah area yang terdampak',
             'Jaga kebersihan kulit secara rutin',
         ],
-        lupus: [
-            'Segera konsultasikan ke dokter kulit atau reumatologis',
-            'Gunakan tabir surya SPF tinggi setiap hari',
-            'Hindari paparan sinar matahari langsung terutama saat terik',
+        akiec: [
+            'Segera konsultasikan ke dokter kulit untuk pemeriksaan lebih lanjut (biopsi bila perlu)',
+            'Gunakan tabir surya SPF 30+ setiap hari dan hindari paparan matahari langsung',
+            'Jangan menggaruk atau mengelupas area lesi',
         ],
-        scabies: [
-            'Gunakan krim permethrin 5% yang diresepkan dokter ke seluruh tubuh',
-            'Cuci semua pakaian, handuk, dan sprei dengan air panas',
-            'Seluruh anggota keluarga perlu diperiksa dan diobati bersamaan',
+        bcc: [
+            'Segera konsultasikan ke dokter kulit atau onkologis untuk evaluasi dan rencana pengangkatan',
+            'Hindari paparan sinar matahari berlebihan pada area yang terdampak',
+            'Pantau apakah luka membesar atau berdarah',
         ],
-        dermatitis: [
-            'Segera hentikan kontak dengan bahan yang diduga menjadi pemicu',
-            'Oleskan krim kortikosteroid ringan (Hydrocortisone 1%) pada area yang meradang sesuai anjuran dokter',
-            'Gunakan sarung tangan pelindung jika harus bersentuhan dengan bahan kimia atau detergen',
+        bkl: [
+            'Konsultasikan ke dokter kulit untuk memastikan sifat jinak lesi',
+            'Hindari menggaruk atau mengelupas lesi secara paksa',
+            'Pantau perubahan ukuran, warna, atau tekstur secara berkala',
         ],
-        melanoma: [
-            'Segera konsultasikan ke dokter kulit atau onkologis',
-            'Jangan menunda pemeriksaan lebih lanjut',
-            'Hindari paparan sinar UV berlebihan',
+        df: [
+            'Umumnya tidak memerlukan pengobatan, namun tetap konsultasikan bila terasa nyeri',
+            'Hindari trauma berulang pada area yang sama',
+            'Pengangkatan bedah bisa dipertimbangkan jika mengganggu secara estetika',
         ],
-        psoriasis: [
-            'Gunakan pelembap secara rutin untuk mengurangi kekeringan',
-            'Oleskan krim kortikosteroid sesuai resep dokter',
-            'Kelola stres karena dapat memperburuk kondisi',
+        mel: [
+            'Segera konsultasikan ke dokter kulit atau onkologis — jangan ditunda',
+            'Persiapkan pemeriksaan lanjutan seperti biopsi dan dermoskopi',
+            'Hindari paparan sinar UV berlebihan dan gunakan tabir surya setiap hari',
         ],
-        eksim: [
-            'Gunakan pelembap bebas pewangi (fragrance-free) setidaknya dua kali sehari',
-            'Pilih produk perawatan kulit berlabel hypoallergenic',
-            'Hindari pemicu seperti wol, sabun keras, dan perubahan suhu ekstrem',
+        nv: [
+            'Pantau perubahan bentuk, warna, ukuran, atau perdarahan pada tahi lalat (prinsip ABCDE)',
+            'Konsultasikan ke dokter kulit bila ada perubahan mencurigakan',
+            'Gunakan tabir surya untuk melindungi area sekitar tahi lalat',
+        ],
+        vasc: [
+            'Konsultasikan ke dokter kulit bila lesi membesar atau berubah warna',
+            'Umumnya tidak memerlukan pengobatan kecuali mengganggu secara estetika',
+            'Hindari trauma atau gesekan berulang pada area lesi',
         ],
     };
 
@@ -240,37 +276,52 @@
             'Pantau perkembangan kondisi kulit secara berkala',
             'Hindari menggaruk area yang gatal untuk mencegah infeksi',
         ],
-        lupus: [
-            'Ikuti pemeriksaan darah rutin sesuai anjuran dokter',
-            'Hindari stres berlebihan yang dapat memicu flare',
-            'Konsumsi makanan bergizi dan istirahat cukup',
+        akiec: [
+            'Lakukan pemeriksaan kulit rutin setiap 6-12 bulan',
+            'Kenakan pakaian pelindung dan topi saat beraktivitas di luar ruangan',
+            'Hindari paparan matahari pada jam 10.00–16.00',
         ],
-        scabies: [
-            'Jika gatal tidak mereda setelah 2-4 minggu, kunjungi dokter kembali',
-            'Hindari berbagi barang pribadi seperti handuk atau pakaian',
-            'Bersihkan furnitur dengan vacuum cleaner secara menyeluruh',
-        ],
-        dermatitis: [
-            'Gunakan pelembap bebas pewangi (fragrance-free) setidaknya dua kali sehari untuk menjaga kelembapan kulit',
-            'Pilih produk perawatan kulit berlabel hypoallergenic',
-            'Jika gejala tidak membaik dalam 1-2 minggu, segera berkonsultasi dokter kulit',
-            'Hindari menggaruk area yang gatal untuk mencegah infeksi sekunder',
-        ],
-        melanoma: [
-            'Lakukan pemeriksaan kulit mandiri setiap bulan',
+        bcc: [
+            'Lakukan pemeriksaan kulit rutin pasca pengobatan untuk mendeteksi kekambuhan',
             'Gunakan tabir surya setiap hari meski cuaca mendung',
+            'Periksa area kulit lain yang sering terpapar matahari',
+        ],
+        bkl: [
+            'Lakukan pemeriksaan kulit mandiri secara berkala',
+            'Jaga kelembapan kulit dengan pelembap ringan',
+            'Tidak perlu khawatir berlebihan karena umumnya bersifat jinak',
+        ],
+        df: [
+            'Amati apakah benjolan bertambah besar atau berubah warna',
+            'Hindari memencet atau menekan benjolan secara berulang',
+            'Konsultasi ulang bila muncul rasa nyeri yang menetap',
+        ],
+        mel: [
+            'Lakukan pemeriksaan kulit mandiri setiap bulan (metode ABCDE)',
+            'Ajak anggota keluarga untuk turut memeriksa area yang sulit dilihat sendiri',
             'Hindari sunbed dan paparan UV buatan',
         ],
-        psoriasis: [
-            'Hindari alkohol dan rokok yang dapat memperparah kondisi',
-            'Mandi dengan air hangat, bukan panas',
-            'Ikuti program terapi cahaya (phototherapy) jika direkomendasikan dokter',
+        nv: [
+            'Foto tahi lalat secara berkala untuk memantau perubahan dari waktu ke waktu',
+            'Periksakan ke dokter kulit setahun sekali sebagai langkah pencegahan',
+            'Waspadai tahi lalat baru yang muncul di usia dewasa',
         ],
-        eksim: [
-            'Ikuti pola tidur dan istirahat yang teratur',
-            'Hindari perubahan suhu ekstrem dan keringat berlebihan',
-            'Gunakan pakaian berbahan katun yang lembut',
+        vasc: [
+            'Pantau apakah lesi bertambah banyak atau meluas',
+            'Konsultasikan bila muncul rasa nyeri atau perdarahan spontan',
+            'Umumnya tidak berbahaya, namun tetap perlu pemeriksaan rutin',
         ],
+    };
+
+    // Tingkat risiko default per kelas (dipakai jika kolom tingkat_resiko kosong di database)
+    const risikoPenyakit = {
+        akiec: 'Sedang',
+        bcc: 'Sedang',
+        bkl: 'Rendah',
+        df: 'Rendah',
+        mel: 'Tinggi',
+        nv: 'Rendah',
+        vasc: 'Rendah',
     };
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -284,11 +335,28 @@
         });
     });
 
+    // Mengubah label yang tersimpan di database (kode singkat atau nama lengkap)
+    // menjadi salah satu dari 7 key valid: akiec, bcc, bkl, df, mel, nv, vasc
     function getKey(label) {
         if (!label) return 'default';
-        const l = label.toLowerCase();
-        for (const key of Object.keys(deskripsiPenyakit)) {
-            if (key !== 'default' && l.includes(key)) return key;
+        const l = label.toLowerCase().trim();
+        const validKeys = ['akiec', 'bcc', 'bkl', 'df', 'mel', 'nv', 'vasc'];
+
+        // Kecocokan langsung (label sudah berupa kode, mis. "mel", "nv")
+        if (validKeys.includes(l)) return l;
+
+        // Fallback jika label berupa nama lengkap (mis. "Melanoma", "Basal Cell Carcinoma")
+        const aliasMap = {
+            akiec: ['actinic', 'keratosis aktinik', 'bowen'],
+            bcc: ['basal cell', 'karsinoma sel basal'],
+            bkl: ['benign keratosis', 'keratosis benigna'],
+            df: ['dermatofibroma'],
+            mel: ['melanoma'],
+            nv: ['nevus', 'melanocytic', 'tahi lalat'],
+            vasc: ['vascular', 'lesi vaskular', 'hemangioma', 'angioma'],
+        };
+        for (const key of validKeys) {
+            if (aliasMap[key].some(alias => l.includes(alias))) return key;
         }
         return 'default';
     }
@@ -298,11 +366,12 @@
         if (!data) return;
 
         const key       = getKey(data.label_penyakit);
-        const label     = data.label_penyakit
-            ? data.label_penyakit.charAt(0).toUpperCase() + data.label_penyakit.slice(1)
-            : 'Tidak Diketahui';
+        const label     = namaLengkapPenyakit[key]
+            ?? (data.label_penyakit
+                ? data.label_penyakit.charAt(0).toUpperCase() + data.label_penyakit.slice(1)
+                : 'Tidak Diketahui');
         const confidence = data.confidence ?? '-';
-        const risiko    = data.tingkat_resiko ?? 'Rendah';
+        const risiko    = data.tingkat_resiko ?? risikoPenyakit[key] ?? 'Rendah';
 
         // Badge warna
         const badge = document.getElementById('modalRisikoBadge');
@@ -386,15 +455,20 @@
       <tr><th>No</th><th>Tanggal</th><th>Jenis Penyakit</th><th>Confidence Score</th><th>Tingkat Risiko</th></tr>
     </thead>
     <tbody>
-      ${allData.map((d, i) => `
+      ${allData.map((d, i) => {
+          const key = getKey(d.label_penyakit);
+          const namaLengkap = namaLengkapPenyakit[key] ?? (d.label_penyakit ?? '-');
+          const risiko = d.tingkat_resiko ?? risikoPenyakit[key] ?? '-';
+          return `
         <tr>
           <td>${i + 1}</td>
           <td>${new Date(d.created_at).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'})}</td>
-          <td style="text-transform:capitalize">${d.label_penyakit ?? '-'}</td>
+          <td>${namaLengkap}</td>
           <td>${d.confidence ?? '-'}%</td>
-          <td>${d.tingkat_resiko ?? '-'}</td>
+          <td>${risiko}</td>
         </tr>
-      `).join('')}
+      `;
+      }).join('')}
     </tbody>
   </table>
   <div class="footer">⚠️ Laporan ini bersifat informatif dan tidak menggantikan diagnosis medis profesional.</div>

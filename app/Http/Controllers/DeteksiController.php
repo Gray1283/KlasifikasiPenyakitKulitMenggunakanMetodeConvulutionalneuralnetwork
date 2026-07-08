@@ -81,7 +81,20 @@ class DeteksiController extends Controller
             Log::error('ML API error: ' . ($mlResult['error'] ?? 'unknown'));
             Storage::disk('public')->delete($imagePath);
             GambarKulit::destroy($gambar->id_gambar);
-            return back()->withErrors(['image' => 'Gagal menganalisis gambar: ' . ($mlResult['error'] ?? 'Coba lagi.')]);
+
+            // Deteksi error "bukan gambar kulit" dari ML API
+            $errorMsg = $mlResult['error'] ?? '';
+            $isSkinError = str_contains(strtolower($errorMsg), 'tidak terdeteksi sebagai gambar kulit')
+                        || str_contains(strtolower($errorMsg), 'is_skin')
+                        || ($mlResult['data']['is_skin'] ?? true) === false;
+
+            if ($isSkinError) {
+                return back()->withErrors([
+                    'image' => 'tidak terdeteksi sebagai gambar kulit',
+                ]);
+            }
+
+            return back()->withErrors(['image' => 'Gagal menganalisis gambar. Silakan coba lagi.']);
         }
 
         $labelRaw    = $mlResult['data']['predicted_class'];
