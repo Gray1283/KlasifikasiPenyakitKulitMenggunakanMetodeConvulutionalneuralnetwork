@@ -120,16 +120,16 @@
                                 Edit
                             </button>
                             @if($user->id_user !== auth()->user()->id_user)
-                            <form action="{{ route('admin.users.destroy', $user->id_user) }}" method="POST"
-                                  onsubmit="return confirm('Hapus user {{ $user->name }}?')">
+                            <form id="form-hapus-{{ $user->id_user }}" action="{{ route('admin.users.destroy', $user->id_user) }}" method="POST" class="hidden">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit"
-                                        class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors border border-red-100">
-                                    <i class="fas fa-trash-alt text-xs"></i>
-                                    Hapus
-                                </button>
                             </form>
+                            <button type="button"
+                                    onclick="konfirmasiHapus({{ $user->id_user }}, '{{ addslashes($user->name) }}')"
+                                    class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors border border-red-100">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                                Hapus
+                            </button>
                             @else
                             <span class="text-xs text-gray-200">—</span>
                             @endif
@@ -291,6 +291,9 @@
 </script>
 @endif
 
+{{-- SweetAlert2 (kalau belum ada di layout, boleh dipindah ke layouts/admin.blade.php) --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 function openEdit(id, name, role) {
     document.getElementById('editName').value = name;
@@ -298,6 +301,34 @@ function openEdit(id, name, role) {
     document.getElementById('formEdit').action = '/admin/users/' + id;
     document.getElementById('modalEdit').classList.remove('hidden');
 }
+
+function konfirmasiHapus(id, nama) {
+    Swal.fire({
+        title: 'Hapus user ' + nama + '?',
+        text: 'Data yang dihapus tidak bisa dikembalikan.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#146135',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: 'Ya, hapus',
+        cancelButtonText: 'Batal',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('form-hapus-' + id).submit();
+        }
+    });
+}
+
+@if(session('success'))
+    Swal.fire({
+        icon: 'success',
+        title: '{{ session('success') }}',
+        confirmButtonColor: '#146135',
+        timer: 2500,
+        timerProgressBar: true
+    });
+@endif
 </script>
 
 @endsection

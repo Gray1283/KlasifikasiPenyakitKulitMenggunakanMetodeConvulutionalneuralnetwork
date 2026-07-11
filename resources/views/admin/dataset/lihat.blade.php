@@ -27,11 +27,25 @@
             </div>
         </div>
 
-        <button onclick="modalUpload({{ $penyakit->id_penyakit }}, '{{ $penyakit->nama_penyakit }}')"
-            class="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
-            <i class="fa-solid fa-upload"></i>
-            Upload Gambar
-        </button>
+        <div class="flex items-center gap-2">
+            @if($gambar->isNotEmpty())
+            <form id="formHapusSemua" method="POST"
+                action="{{ route('admin.dataset.hapus-semua', $penyakit->id_penyakit) }}" class="hidden">
+                @csrf
+                @method('DELETE')
+            </form>
+            <button type="button" onclick="konfirmasiHapusSemua()"
+                class="px-4 py-2 text-sm bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 flex items-center gap-2">
+                <i class="fa-solid fa-trash-can"></i>
+                Hapus Semua
+            </button>
+            @endif
+            <button onclick="modalUpload({{ $penyakit->id_penyakit }}, '{{ $penyakit->nama_penyakit }}')"
+                class="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
+                <i class="fa-solid fa-upload"></i>
+                Upload Gambar
+            </button>
+        </div>
     </div>
 
     {{-- Alert --}}
@@ -77,15 +91,17 @@
                 <p class="text-xs text-gray-400 truncate" title="{{ $img['name'] }}">{{ $img['name'] }}</p>
                 <div class="flex justify-between items-center mt-1">
                     <span class="text-xs text-gray-300">{{ $img['size'] }}</span>
-                    <form method="POST"
+                    <form id="form-hapus-{{ $loop->index }}" method="POST"
                         action="{{ route('admin.dataset.hapus-gambar', [$penyakit->id_penyakit, $img['name']]) }}"
-                        onsubmit="return confirm('Hapus gambar ini?')">
+                        class="hidden">
                         @csrf
                         @method('DELETE')
-                        <button class="text-red-400 hover:text-red-600 text-xs" title="Hapus">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
                     </form>
+                    <button type="button"
+                        onclick="konfirmasiHapusGambar({{ $loop->index }}, '{{ addslashes($img['name']) }}')"
+                        class="text-red-400 hover:text-red-600 text-xs" title="Hapus">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
                 </div>
             </div>
         </div>
@@ -152,6 +168,9 @@
     </div>
 </div>
 
+{{-- SweetAlert2 (kalau sudah ada di layouts/admin.blade.php, baris ini boleh dihapus biar tidak double-load) --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
 function modalUpload(id, nama) {
     document.getElementById('namaKelas').textContent = nama;
@@ -167,6 +186,45 @@ function lihatGambar(path, nama) {
     document.getElementById('previewImg').src = path;
     document.getElementById('previewNama').textContent = nama;
     document.getElementById('modalPreview').style.cssText = 'display:flex!important';
+}
+
+// ── Konfirmasi hapus 1 gambar ─────────────────────────────────
+function konfirmasiHapusGambar(index, nama) {
+    Swal.fire({
+        title: 'Hapus gambar ini?',
+        text: nama,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: 'Ya, hapus',
+        cancelButtonText: 'Batal',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('form-hapus-' + index).submit();
+        }
+    });
+}
+
+// ── Konfirmasi hapus SEMUA gambar di kelas ini ─────────────────
+function konfirmasiHapusSemua() {
+    Swal.fire({
+        title: 'Hapus semua gambar?',
+        text: 'Seluruh gambar pada kelas "{{ $penyakit->nama_penyakit }}" ({{ $gambar->count() }} gambar) akan dihapus permanen dan tidak bisa dikembalikan.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: 'Ya, hapus semua',
+        cancelButtonText: 'Batal',
+        reverseButtons: true,
+        focusCancel: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('formHapusSemua').submit();
+        }
+    });
 }
 
 // Drop zone

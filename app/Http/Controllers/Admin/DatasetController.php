@@ -133,6 +133,36 @@ class DatasetController extends Controller
         return back()->with('error', 'Gambar tidak ditemukan.');
     }
 
+    // ── Hapus SEMUA gambar dalam satu kelas ──────────────────────
+
+    public function hapusSemua($id)
+    {
+        $penyakit = Penyakit::findOrFail($id);
+
+        if (!$penyakit->kode_label) {
+            return back()->with('error', 'Kode label penyakit ini belum diset.');
+        }
+
+        $folder = $this->datasetPath . '/' . $penyakit->kode_label;
+
+        if (!File::exists($folder)) {
+            return back()->with('error', 'Folder dataset tidak ditemukan.');
+        }
+
+        $files = collect(File::files($folder))
+            ->filter(fn($f) => in_array(strtolower($f->getExtension()), ['jpg', 'jpeg', 'png']));
+
+        $jumlah = $files->count();
+
+        foreach ($files as $file) {
+            File::delete($file->getPathname());
+        }
+
+        return redirect()
+            ->route('admin.dataset.index')
+            ->with('success', "{$jumlah} gambar pada kelas {$penyakit->nama_penyakit} berhasil dihapus.");
+    }
+
     public function serveGambar($id, $nama)
     {
         $penyakit = Penyakit::findOrFail($id);

@@ -218,6 +218,9 @@
     @method('DELETE')
 </form>
 
+{{-- SweetAlert2 (kalau sudah ada di layouts/admin.blade.php, baris ini boleh dihapus biar tidak double-load) --}}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     // Search hanya berdasarkan nama user & email
     function filterTable() {
@@ -294,10 +297,23 @@
 
     // Hapus data
     function hapusData(id) {
-        if (!confirm('Yakin ingin menghapus data ini?')) return;
-        const form = document.getElementById('formHapus');
-        form.action = `/admin/riwayat-kesehatan/${id}`;
-        form.submit();
+        Swal.fire({
+            title: 'Hapus data ini?',
+            text: 'Data hasil klasifikasi yang dihapus tidak bisa dikembalikan.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#146135',
+            cancelButtonColor: '#9ca3af',
+            confirmButtonText: 'Ya, hapus',
+            cancelButtonText: 'Batal',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.getElementById('formHapus');
+                form.action = `/admin/riwayat-kesehatan/${id}`;
+                form.submit();
+            }
+        });
     }
 </script>
 

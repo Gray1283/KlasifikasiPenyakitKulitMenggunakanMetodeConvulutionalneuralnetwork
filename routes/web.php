@@ -106,15 +106,15 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
     Route::get('/riwayat-kesehatan/{id}',    [AdminRiwayatKesehatanController::class, 'show'])->name('riwayat_kesehatan.show');
     Route::delete('/riwayat-kesehatan/{id}', [AdminRiwayatKesehatanController::class, 'destroy'])->name('riwayat_kesehatan.destroy');
 
-        // Dataset
+     // Dataset
     Route::get('dataset',                        [DatasetController::class, 'index'])->name('dataset.index');
     Route::post('dataset/upload-zip',            [DatasetController::class, 'uploadZip'])->name('dataset.upload-zip');
     Route::post('dataset/{id}/upload',           [DatasetController::class, 'upload'])->name('dataset.upload');
     Route::get('dataset/{id}/lihat',             [DatasetController::class, 'lihat'])->name('dataset.lihat');
     Route::get('dataset/{id}/gambar/{nama}',     [DatasetController::class, 'serveGambar'])->name('dataset.gambar');
     Route::delete('dataset/{id}/gambar/{nama}',  [DatasetController::class, 'hapusGambar'])->name('dataset.hapus-gambar');
-
-      // Training
+    Route::delete('dataset/{id}/hapus-semua',    [DatasetController::class, 'hapusSemua'])->name('dataset.hapus-semua');
+        // Training
     Route::get('training',         [TrainingController::class, 'index'])->name('training.index');
     Route::post('training/start',  [TrainingController::class, 'start'])->name('training.start');
     Route::get('training/status',  [TrainingController::class, 'status'])->name('training.status');
