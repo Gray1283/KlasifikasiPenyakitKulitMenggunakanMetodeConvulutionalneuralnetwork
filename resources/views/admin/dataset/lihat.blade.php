@@ -40,11 +40,11 @@
                 Hapus Semua
             </button>
             @endif
-            <button onclick="modalUpload({{ $penyakit->id_penyakit }}, '{{ $penyakit->nama_penyakit }}')"
+            <a href="{{ route('admin.dataset.index') }}"
                 class="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2">
-                <i class="fa-solid fa-upload"></i>
-                Upload Gambar
-            </button>
+                <i class="fa-solid fa-file-zipper"></i>
+                Upload ZIP
+            </a>
         </div>
     </div>
 
@@ -65,7 +65,7 @@
     <div class="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400">
         <i class="fa-solid fa-image text-5xl mb-3 block opacity-20"></i>
         <p class="font-medium">Belum ada gambar untuk kelas ini.</p>
-        <p class="text-sm mt-1">Klik tombol "Upload Gambar" di kanan atas untuk menambahkan.</p>
+        <p class="text-sm mt-1">Kembali ke halaman Dataset dan klik "Upload ZIP" untuk menambahkan.</p>
     </div>
     @else
 
@@ -110,52 +110,6 @@
     @endif
 </div>
 
-{{-- Modal Upload --}}
-<div id="modalUpload" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display:none;">
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center px-6 py-4 border-b">
-                <h3 class="font-bold text-gray-800">
-                    <i class="fa-solid fa-upload text-green-600 mr-2"></i>
-                    Upload ke <span id="namaKelas"></span>
-                </h3>
-                <button onclick="document.getElementById('modalUpload').style.display='none'"
-                    class="text-gray-400 hover:text-gray-600 text-xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <form id="formUpload" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
-                @csrf
-                <div id="dropZone"
-                    class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-blue-400 transition-colors cursor-pointer">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2 block"></i>
-                    <p class="text-sm text-gray-500 mb-1">Klik atau drag & drop gambar</p>
-                    <p id="fileCount" class="text-xs text-blue-500 font-medium"></p>
-                    <input type="file" id="fileInput" name="gambar[]" multiple accept="image/*" class="hidden">
-                </div>
-                <p class="text-xs text-gray-400">Format: JPG, JPEG, PNG. Maks 2MB per file.</p>
-                <div id="progressWrap" class="hidden">
-                    <div class="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Mengupload...</span>
-                        <span id="progressText">0%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div id="progressBar" class="h-2 rounded-full bg-green-500 transition-all" style="width:0%"></div>
-                    </div>
-                </div>
-                <div class="flex gap-2 justify-end">
-                    <button type="button" onclick="document.getElementById('modalUpload').style.display='none'"
-                        class="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button>
-                    <button type="submit" id="btnUpload"
-                        class="px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700">
-                        <i class="fa-solid fa-upload mr-1"></i>Upload
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 {{-- Modal Preview Gambar --}}
 <div id="modalPreview" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center" style="display:none!important;">
     <div class="relative max-w-2xl w-full px-4">
@@ -172,16 +126,6 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-function modalUpload(id, nama) {
-    document.getElementById('namaKelas').textContent = nama;
-    document.getElementById('formUpload').action = `/admin/dataset/${id}/upload`;
-    document.getElementById('fileCount').textContent = '';
-    document.getElementById('fileInput').value = '';
-    document.getElementById('progressWrap').classList.add('hidden');
-    document.getElementById('progressBar').style.width = '0%';
-    document.getElementById('modalUpload').style.display = 'block';
-}
-
 function lihatGambar(path, nama) {
     document.getElementById('previewImg').src = path;
     document.getElementById('previewNama').textContent = nama;
@@ -226,54 +170,6 @@ function konfirmasiHapusSemua() {
         }
     });
 }
-
-// Drop zone
-document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
-document.getElementById('fileInput').addEventListener('change', function () {
-    document.getElementById('fileCount').textContent = this.files.length > 0 ? `${this.files.length} file dipilih` : '';
-});
-
-const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('border-blue-400', 'bg-blue-50'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('border-blue-400', 'bg-blue-50'));
-dz.addEventListener('drop', e => {
-    e.preventDefault();
-    dz.classList.remove('border-blue-400', 'bg-blue-50');
-    const dt = new DataTransfer();
-    [...e.dataTransfer.files].forEach(f => dt.items.add(f));
-    document.getElementById('fileInput').files = dt.files;
-    document.getElementById('fileCount').textContent = `${dt.files.length} file dipilih`;
-});
-
-// Upload + progress
-document.getElementById('formUpload').addEventListener('submit', function (e) {
-    e.preventDefault();
-    const fi = document.getElementById('fileInput');
-    if (!fi.files.length) { alert('Pilih gambar dulu!'); return; }
-
-    const fd = new FormData(this);
-    [...fi.files].forEach(f => fd.append('gambar[]', f));
-
-    document.getElementById('progressWrap').classList.remove('hidden');
-    document.getElementById('btnUpload').disabled = true;
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', this.action);
-    xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').content);
-    xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-            const pct = Math.round(e.loaded / e.total * 100);
-            document.getElementById('progressBar').style.width = pct + '%';
-            document.getElementById('progressText').textContent = pct + '%';
-        }
-    };
-    xhr.onload = () => window.location.reload();
-    xhr.onerror = () => {
-        alert('Upload gagal.');
-        document.getElementById('btnUpload').disabled = false;
-    };
-    xhr.send(fd);
-});
 
 // Search gambar
 document.getElementById('searchGambar')?.addEventListener('input', function () {

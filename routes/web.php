@@ -109,7 +109,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
      // Dataset
     Route::get('dataset',                        [DatasetController::class, 'index'])->name('dataset.index');
     Route::post('dataset/upload-zip',            [DatasetController::class, 'uploadZip'])->name('dataset.upload-zip');
-    Route::post('dataset/{id}/upload',           [DatasetController::class, 'upload'])->name('dataset.upload');
     Route::get('dataset/{id}/lihat',             [DatasetController::class, 'lihat'])->name('dataset.lihat');
     Route::get('dataset/{id}/gambar/{nama}',     [DatasetController::class, 'serveGambar'])->name('dataset.gambar');
     Route::delete('dataset/{id}/gambar/{nama}',  [DatasetController::class, 'hapusGambar'])->name('dataset.hapus-gambar');

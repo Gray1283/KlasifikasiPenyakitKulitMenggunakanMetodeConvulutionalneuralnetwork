@@ -10,9 +10,14 @@ use Illuminate\Support\Facades\File;
 
 class DatasetController extends Controller
 {
-    protected string $datasetPath = 'C:/Users/ASUS/DermaAI/dataset';
+    protected string $datasetPath;
 
-    public function __construct(protected MLService $ml) {}
+    public function __construct(protected MLService $ml)
+    {
+        // Folder dataset di-share dengan Flask (sama persis dengan DATASET_DIR di config.py Flask).
+        // Set nilainya di .env sesuai environment (lokal Windows atau server Ubuntu nanti).
+        $this->datasetPath = env('DATASET_SHARED_PATH', storage_path('app/dataset'));
+    }
 
     public function index()
     {
@@ -67,37 +72,7 @@ class DatasetController extends Controller
         ], 422);
     }
 
-    // ── Upload gambar satuan (tetap ada sebagai fallback) ────────
-
-    public function upload(Request $request, $id)
-    {
-        $request->validate([
-            'gambar.*' => 'required|image|mimes:jpg,jpeg,png|max:2048',
-        ]);
-
-        $penyakit = Penyakit::findOrFail($id);
-
-        if (!$penyakit->kode_label) {
-            return back()->with('error', 'Kode label penyakit ini belum diset.');
-        }
-
-        $folder = $this->datasetPath . '/' . $penyakit->kode_label;
-
-        if (!File::exists($folder)) {
-            File::makeDirectory($folder, 0755, true);
-        }
-
-        $uploaded = 0;
-        foreach ($request->file('gambar') as $file) {
-            $nama = $penyakit->kode_label . '_' . time() . '_' . $uploaded . '.' . $file->getClientOriginalExtension();
-            $file->move($folder, $nama);
-            $uploaded++;
-        }
-
-        return back()->with('success', "{$uploaded} gambar berhasil diupload ke {$penyakit->nama_penyakit}.");
-    }
-
-    // ── Lihat gambar per kelas ───────────────────────────────────
+    // ── Lihat gambar per kelas (baca dari folder shared dengan Flask) ────
 
     public function lihat($id)
     {

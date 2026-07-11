@@ -153,10 +153,6 @@
                                     class="px-3 py-1.5 text-xs bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100">
                                     <i class="fa-solid fa-file-zipper mr-1"></i>ZIP
                                 </button>
-                                <button onclick="modalUpload({{ $item->id_penyakit }}, '{{ $item->nama_penyakit }}')"
-                                    class="px-3 py-1.5 text-xs bg-[#f0faf4] text-[#146135] rounded-lg hover:bg-[#d1f0de]">
-                                    <i class="fa-solid fa-upload mr-1"></i>Upload
-                                </button>
                                 @endif
                             </div>
                         </td>
@@ -264,51 +260,6 @@
     </div>
 </div>
 
-{{-- Modal Upload Gambar Satuan --}}
-<div id="modalUpload" class="fixed inset-0 bg-black bg-opacity-50 z-50" style="display:none;">
-    <div class="flex items-center justify-center min-h-screen px-4">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md">
-            <div class="flex justify-between items-center px-6 py-4 border-b">
-                <h3 class="font-bold text-gray-800">
-                    <i class="fa-solid fa-upload text-[#146135] mr-2"></i>
-                    Upload Gambar — <span id="namaKelas"></span>
-                </h3>
-                <button onclick="document.getElementById('modalUpload').style.display='none'"
-                    class="text-gray-400 hover:text-gray-600 text-xl">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <form id="formUpload" method="POST" enctype="multipart/form-data" class="p-6 space-y-4">
-                @csrf
-                <div id="dropZone"
-                    class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-[#3eb872] transition-colors cursor-pointer">
-                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-300 mb-2 block"></i>
-                    <p class="text-sm text-gray-500 mb-1">Klik atau drag & drop gambar</p>
-                    <p id="fileCount" class="text-xs text-[#146135] font-medium"></p>
-                    <input type="file" id="fileInput" name="gambar[]" multiple accept="image/*" class="hidden">
-                </div>
-                <p class="text-xs text-gray-400">Format: JPG, JPEG, PNG. Maks 2MB per file.</p>
-                <div id="progressWrap" class="hidden">
-                    <div class="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Mengupload...</span><span id="progressText">0%</span>
-                    </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div id="progressBar" class="h-2 rounded-full bg-[#3eb872] transition-all" style="width:0%"></div>
-                    </div>
-                </div>
-                <div class="flex gap-2 justify-end">
-                    <button type="button" onclick="document.getElementById('modalUpload').style.display='none'"
-                        class="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">Batal</button>
-                    <button type="submit" id="btnUpload"
-                        class="px-4 py-2 text-sm bg-[#146135] text-white rounded-lg hover:bg-[#0f4a27]">
-                        <i class="fa-solid fa-upload mr-1"></i>Upload
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <script>
 // ── Modal ZIP ────────────────────────────────────────────────
 
@@ -408,61 +359,5 @@ function uploadZip() {
 
     xhr.send(fd);
 }
-
-// ── Modal Upload Gambar Satuan ───────────────────────────────
-
-function modalUpload(id, nama) {
-    document.getElementById('namaKelas').textContent = nama;
-    document.getElementById('formUpload').action = `/admin/dataset/${id}/upload`;
-    document.getElementById('fileCount').textContent = '';
-    document.getElementById('fileInput').value = '';
-    document.getElementById('modalUpload').style.display = 'block';
-}
-
-document.getElementById('dropZone').addEventListener('click', () => document.getElementById('fileInput').click());
-document.getElementById('fileInput').addEventListener('change', function () {
-    document.getElementById('fileCount').textContent = this.files.length > 0 ? `${this.files.length} file dipilih` : '';
-});
-
-const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('border-[#3eb872]', 'bg-[#f0faf4]'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('border-[#3eb872]', 'bg-[#f0faf4]'));
-dz.addEventListener('drop', e => {
-    e.preventDefault();
-    dz.classList.remove('border-[#3eb872]', 'bg-[#f0faf4]');
-    const dt = new DataTransfer();
-    [...e.dataTransfer.files].forEach(f => dt.items.add(f));
-    document.getElementById('fileInput').files = dt.files;
-    document.getElementById('fileCount').textContent = `${dt.files.length} file dipilih`;
-});
-
-document.getElementById('formUpload').addEventListener('submit', function (e) {
-    e.preventDefault();
-    const fi = document.getElementById('fileInput');
-    if (!fi.files.length) { alert('Pilih gambar dulu!'); return; }
-
-    const fd = new FormData(this);
-    [...fi.files].forEach(f => fd.append('gambar[]', f));
-
-    document.getElementById('progressWrap').classList.remove('hidden');
-    document.getElementById('btnUpload').disabled = true;
-
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', this.action);
-    xhr.setRequestHeader('X-CSRF-TOKEN', document.querySelector('meta[name="csrf-token"]').content);
-    xhr.upload.onprogress = e => {
-        if (e.lengthComputable) {
-            const pct = Math.round(e.loaded / e.total * 100);
-            document.getElementById('progressBar').style.width = pct + '%';
-            document.getElementById('progressText').textContent = pct + '%';
-        }
-    };
-    xhr.onload = () => window.location.reload();
-    xhr.onerror = () => {
-        alert('Upload gagal.');
-        document.getElementById('btnUpload').disabled = false;
-    };
-    xhr.send(fd);
-});
 </script>
 @endsection
