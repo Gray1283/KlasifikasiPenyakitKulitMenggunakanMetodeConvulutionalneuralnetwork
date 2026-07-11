@@ -40,4 +40,12 @@ class HasilKlasifikasi extends Model
     {
         return $this->belongsTo(\App\Models\CnnModel::class, 'id_model', 'id_model');
     }
+    public function gambar()
+{
+    return $this->belongsTo(\App\Models\GambarKulit::class, 'id_gambar', 'id_gambar');
+}
+public function model()
+{
+    return $this->belongsTo(\App\Models\CnnModel::class, 'id_model', 'id_model');
+}
 }

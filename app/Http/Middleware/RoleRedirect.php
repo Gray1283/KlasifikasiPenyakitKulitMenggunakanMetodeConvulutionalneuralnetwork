@@ -13,20 +13,20 @@ class RoleRedirect
             return redirect()->route('login');
         }
 
-        // admin masuk area user
-        if (
-            Auth::user()->role === 'admin' &&
-            $request->is('dashboard', 'kesehatan*', 'deteksi*')
-        ) {
-            return redirect()->route('admin.dashboard');
+        $user = Auth::user();
+
+        // 🛠 ADMIN tidak boleh masuk halaman user (optional strict)
+        if ($user->role === 'admin') {
+            if ($request->is('dashboard', 'deteksi*', 'riwayat-kesehatan*')) {
+                return redirect()->route('admin.dashboard');
+            }
         }
 
-        // user masuk area admin
-        if (
-            Auth::user()->role === 'pengguna' &&
-            $request->is('admin*')
-        ) {
-            return redirect()->route('dashboard');
+        // 👤 USER tidak boleh masuk admin
+        if ($user->role === 'user') {
+            if ($request->is('admin*')) {
+                return redirect()->route('dashboard');
+            }
         }
 
         return $next($request);

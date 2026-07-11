@@ -101,9 +101,8 @@ class DeteksiController extends Controller
             ]
         );
 
-        // ── Ambil model CNN aktif jika ada ──────────────────────
         try {
-            $modelCnn = CnnModel::latest()->first();
+            $modelCnn = CnnModel::aktif()->first();
         } catch (\Exception $e) {
             $modelCnn = null;
         }

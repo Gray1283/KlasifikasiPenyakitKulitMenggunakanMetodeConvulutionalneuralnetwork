@@ -110,4 +110,174 @@ class MLService
             return false;
         }
     }
+
+        public function uploadZipDataset(string $label, \Illuminate\Http\UploadedFile $file): array
+    {
+        try {
+            $response = Http::timeout(300) // ZIP besar bisa lama
+                ->attach(
+                    'file',
+                    file_get_contents($file->getRealPath()),
+                    $file->getClientOriginalName()
+                )
+                ->post("{$this->baseUrl}/dataset/upload-zip", [
+                    'label' => $label,
+                ]);
+ 
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+ 
+            return [
+                'success' => false,
+                'error'   => $response->json()['message'] ?? "HTTP {$response->status()}",
+            ];
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return ['success' => false, 'error' => 'Tidak dapat terhubung ke Flask: ' . $e->getMessage()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+ 
+    /**
+     * Ambil info jumlah gambar per kelas dari Flask
+     */
+    public function getDatasetInfo(): array
+    {
+        try {
+            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/dataset/info");
+ 
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+ 
+            return ['success' => false, 'error' => "HTTP {$response->status()}"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    public function startTraining(array $params): array
+    {
+        try {
+            $response = Http::timeout(10)
+                ->post("{$this->baseUrl}/train", $params);
+ 
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+            return ['success' => false, 'error' => "HTTP {$response->status()}"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+ 
+    public function getTrainingStatus(): array
+    {
+        try {
+            $response = Http::timeout(10)->get("{$this->baseUrl}/training-status");
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+            return ['success' => false, 'error' => "HTTP {$response->status()}"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+ 
+    public function stopTraining(): array
+    {
+        try {
+            $response = Http::timeout(10)->post("{$this->baseUrl}/training-stop");
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+            return ['success' => false, 'error' => "HTTP {$response->status()}"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+ 
+    public function getStats(): array
+    {
+        try {
+            $response = Http::timeout(10)->get("{$this->baseUrl}/stats");
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+            return ['success' => false, 'error' => "HTTP {$response->status()}"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Minta Flask generate gambar augmentasi untuk 1 kelas tertentu.
+     * Sumber augmentasi otomatis hanya diambil dari bagian TRAIN
+     * (val/test tidak akan pernah disentuh) - logic ini sudah
+     * ditangani di sisi Flask (get_split).
+     */
+    public function augmentClass(string $label, int $jumlah): array
+    {
+        try {
+            $response = Http::timeout(120) // augmentasi banyak gambar bisa agak lama
+                ->post("{$this->baseUrl}/augment", [
+                    'label'  => $label,
+                    'jumlah' => $jumlah,
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'error'   => $response->json()['message'] ?? "HTTP {$response->status()}",
+            ];
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            return ['success' => false, 'error' => 'Tidak dapat terhubung ke Flask: ' . $e->getMessage()];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Ambil daftar semua model yang tersimpan (model awal + hasil training)
+     */
+    public function listModels(): array
+    {
+        try {
+            $response = Http::timeout($this->timeout)->get("{$this->baseUrl}/models");
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+            return ['success' => false, 'error' => "HTTP {$response->status()}"];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Aktifkan model tertentu (yang dipakai untuk /predict selanjutnya)
+     */
+    public function switchModel(string $modelName): array
+    {
+        try {
+            $response = Http::timeout(30)
+                ->post("{$this->baseUrl}/models/switch", [
+                    'model_name' => $modelName,
+                ]);
+
+            if ($response->successful()) {
+                return ['success' => true, 'data' => $response->json()];
+            }
+
+            return [
+                'success' => false,
+                'error'   => $response->json()['message'] ?? "HTTP {$response->status()}",
+            ];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
 }
