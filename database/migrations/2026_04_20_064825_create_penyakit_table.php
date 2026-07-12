@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -9,12 +8,17 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('penyakit', function (Blueprint $table) {
-            $table->string('kode_label', 10)->nullable()->after('nama_penyakit')
+        Schema::create('penyakit', function (Blueprint $table) {
+            $table->id('id_penyakit');
+            $table->string('nama_penyakit');
+            $table->text('deskripsi')->nullable();
+            $table->text('rekomendasi')->nullable();
+            $table->text('saran_tambahan')->nullable();
+            $table->string('kode_label', 10)->nullable()
                   ->comment('Kode label HAM10000: mel, nv, bcc, akiec, bkl, df, vasc');
+            $table->timestamps();
         });
 
-        // Isi kode_label berdasarkan nama_penyakit yang sudah ada
         $mapping = [
             'Melanoma'               => 'mel',
             'Melanocytic Nevi'       => 'nv',
@@ -25,7 +29,6 @@ return new class extends Migration
             'Dermatofibroma'         => 'df',
             'Vascular Lesions'       => 'vasc',
         ];
-
         foreach ($mapping as $nama => $kode) {
             DB::table('penyakit')
                 ->where('nama_penyakit', $nama)
@@ -35,8 +38,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('penyakit', function (Blueprint $table) {
-            $table->dropColumn('kode_label');
-        });
+        Schema::dropIfExists('penyakit');
     }
 };

@@ -8,7 +8,12 @@ use Illuminate\Support\Facades\Http;
 
 class EvaluasiController extends Controller
 {
-    private string $flaskUrl = 'http://localhost:5000';
+   private string $flaskUrl;
+
+public function __construct()
+{
+    $this->flaskUrl = config('services.ml.url');
+}
 
     public function index()
     {

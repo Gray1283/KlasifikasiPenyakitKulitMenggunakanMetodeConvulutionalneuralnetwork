@@ -45,8 +45,7 @@ class DashboardController extends Controller
         // ===== Status server Flask (opsional, aman kalau gagal) =====
         $flaskOnline = false;
         try {
-            $response = Http::timeout(2)->get('http://127.0.0.1:5000/health');
-            $flaskOnline = $response->successful();
+        $response = Http::timeout(2)->get(config('services.ml.url') . '/health');            $flaskOnline = $response->successful();
         } catch (\Exception $e) {
             $flaskOnline = false;
         }

@@ -54,7 +54,7 @@ class RiwayatKesehatanController extends Controller
             'rataAkurasi',
             'prediksiHariIni',
             'penyakitList',
-            'penyakitTerbanyak' // ✅ TAMBAHAN BARU
+            'penyakitTerbanyak' // 
         ));
     }
 
