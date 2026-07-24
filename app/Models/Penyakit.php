@@ -8,5 +8,5 @@ class Penyakit extends Model
 {
     protected $table      = 'penyakit';
     protected $primaryKey = 'id_penyakit';
-    protected $fillable   = ['nama_penyakit', 'deskripsi', 'rekomendasi', 'saran_tambahan'];
+    protected $fillable   = ['nama_penyakit', 'deskripsi', 'rekomendasi', 'saran_tambahan', 'kode_label'];
 }

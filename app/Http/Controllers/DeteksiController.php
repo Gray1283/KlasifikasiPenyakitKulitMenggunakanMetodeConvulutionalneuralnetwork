@@ -104,8 +104,11 @@ class DeteksiController extends Controller
         // ── Map label ke nama penyakit ───────────────────────────
         $namaPenyakit = $this->mapLabel($labelRaw);
 
-        // ── Simpan atau ambil data penyakit ─────────────────────
-        $penyakit = Penyakit::firstOrCreate(
+        // ── Simpan atau update data penyakit ─────────────────────
+        // updateOrCreate dipakai (bukan firstOrCreate) supaya gejala_umum
+        // dan penanganan selalu ikut ter-update setiap ada prediksi baru,
+        // bukan cuma sekali di awal saat baris pertama kali dibuat.
+        $penyakit = Penyakit::updateOrCreate(
             ['nama_penyakit' => $namaPenyakit],
             [
                 'deskripsi'   => $deskripsiAI,
@@ -114,8 +117,9 @@ class DeteksiController extends Controller
             ]
         );
 
+        // ── Ambil model CNN aktif jika ada ──────────────────────
         try {
-            $modelCnn = CnnModel::aktif()->first();
+            $modelCnn = CnnModel::latest()->first();
         } catch (\Exception $e) {
             $modelCnn = null;
         }
@@ -225,19 +229,65 @@ class DeteksiController extends Controller
     }
 
     // ============================================================
-    // HELPER - Rekomendasi per label
+    // HELPER - Rekomendasi Tindakan per label
     // ============================================================
     private function getRekomendasiByLabel(string $label): string
     {
         return match(strtolower($label)) {
-            'mel'   => "Segera konsultasikan ke dokter spesialis kulit\nHindari paparan sinar matahari langsung\nGunakan tabir surya SPF 50+\nJangan mencoba mengobati sendiri",
-            'nv'    => "Pantau perubahan ukuran, warna, atau bentuk\nGunakan tabir surya saat beraktivitas luar\nPeriksa rutin ke dokter kulit setahun sekali",
-            'bcc'   => "Konsultasikan ke dokter kulit segera\nHindari paparan sinar UV berlebihan\nGunakan tabir surya dan pakaian pelindung",
-            'akiec' => "Konsultasikan ke dokter untuk penanganan lebih lanjut\nHindari paparan sinar matahari berlebihan\nGunakan tabir surya setiap hari",
-            'bkl'   => "Pantau kondisi kulit secara rutin\nJaga kebersihan dan kelembapan kulit\nKonsultasikan ke dokter jika ada perubahan",
-            'df'    => "Umumnya tidak berbahaya, pantau saja\nKonsultasikan ke dokter jika terasa nyeri atau membesar\nJangan mencoba memencet atau menghilangkan sendiri",
-            'vasc'  => "Konsultasikan ke dokter kulit atau vaskular\nHindari trauma pada area tersebut\nPantau perubahan warna atau ukuran",
-            default => "Konsultasikan ke dokter kulit untuk diagnosis lebih lanjut",
+            'mel' => implode("\n", [
+                'Segera konsultasi ke dokter spesialis kulit atau onkologi — berpotensi ganas (melanoma)',
+                'Jangan menunda pemeriksaan lanjutan seperti biopsi atau dermoskopi',
+                'Hindari paparan sinar matahari langsung dan gunakan tabir surya SPF 50+',
+                'Informasikan riwayat keluarga terkait kanker kulit kepada dokter',
+                'Pantau tanda ABCDE: Asimetri, Border tidak rata, Color tidak merata, Diameter >6mm, Evolving (berubah)',
+            ]),
+
+            'nv' => implode("\n", [
+                'Umumnya jinak (tahi lalat biasa), namun tetap perlu dipantau',
+                'Periksa rutin setiap 6-12 bulan terutama jika memiliki banyak tahi lalat',
+                'Gunakan tabir surya untuk mencegah perubahan akibat paparan UV',
+                'Konsultasi ke dokter jika terjadi perubahan bentuk, warna, atau ukuran secara tiba-tiba',
+            ]),
+
+            'bcc' => implode("\n", [
+                'Periksakan diri ke dokter kulit sesegera mungkin, BCC memerlukan penanganan medis',
+                'Hindari paparan sinar UV berlebih dan gunakan pelindung fisik (topi, baju lengan panjang)',
+                'Jangan mencoba mengobati sendiri dengan obat topikal tanpa resep dokter',
+                'Pantau perubahan ukuran, warna, atau bentuk lesi secara berkala',
+            ]),
+
+            'akiec' => implode("\n", [
+                'Segera konsultasi ke dokter spesialis kulit untuk pemeriksaan lebih lanjut',
+                'Hindari paparan sinar matahari langsung dan gunakan tabir surya SPF 30+ setiap hari',
+                'Jangan menggaruk atau mengelupas area kulit yang bersisik',
+                'Lakukan biopsi jika direkomendasikan dokter untuk memastikan diagnosis',
+            ]),
+
+            'bkl' => implode("\n", [
+                'Umumnya jinak, namun tetap disarankan konsultasi untuk memastikan diagnosis',
+                'Hindari menggaruk atau mengelupas area yang terkena agar tidak iritasi atau infeksi',
+                'Gunakan pelembap kulit untuk mengurangi rasa gatal jika ada',
+                'Konsultasikan ke dokter bila muncul perubahan mendadak pada tekstur atau warna',
+            ]),
+
+            'df' => implode("\n", [
+                'Umumnya jinak dan tidak berbahaya, namun tetap perlu dipantau',
+                'Konsultasi ke dokter kulit jika lesi terasa nyeri, membesar, atau berubah warna',
+                'Hindari trauma berulang (gesekan, tekanan) pada area yang terkena',
+                'Jangan mencoba memencet atau menghilangkan sendiri',
+            ]),
+
+            'vasc' => implode("\n", [
+                'Umumnya berupa kelainan pembuluh darah jinak, namun tetap perlu evaluasi medis',
+                'Konsultasi ke dokter kulit jika lesi berdarah, membesar, atau menimbulkan nyeri',
+                'Hindari trauma fisik pada area yang terkena',
+                'Pantau perubahan warna atau ukuran secara berkala',
+            ]),
+
+            default => implode("\n", [
+                'Konsultasikan hasil ini kepada dokter spesialis kulit untuk diagnosis yang akurat',
+                'Jangan mengambil keputusan pengobatan hanya berdasarkan hasil deteksi otomatis ini',
+            ]),
         };
     }
 }
